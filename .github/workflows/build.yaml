@@ -9,24 +9,30 @@ jobs:
     steps:
       - name: Checkout the code
         uses: actions/checkout@v2
+
       - name: Set up JDK
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v3  # 更新到最新版本的动作
         with:
-          java-version: 1.8
+          java-version: '8'  # 使用 1.8 的别名，但通常 '8' 是更标准的表示方式
+          distribution: 'temurin'  # 可选：指定 JDK 分发版（例如 Temurin, AdoptOpenJDK 等）
+
       - id: get-project
         name: Get project name
-        run: echo "::set-output name=PROJECT::$(cat project-to-build)"
+        run: echo "::set-output name=PROJECT::$(cat project-to-build | xargs)"  # 确保 cat 命令的输出被正确解析为项目 URL
+
       - name: Clone project
-        run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} project
+        run: git clone --depth=1 https://github.com/${{ steps.get-project.outputs.PROJECT }}.git project  # 可能需要添加完整的 Git URL 前缀
+        # 注意：如果 project-to-build 文件中只是仓库名（没有前缀），则需要添加前缀。如果已经是完整 URL，则此步骤无需更改。
+
       - name: Build the app
         working-directory: ./project
         run: |
-          if [ ! -f "gradlew" ]; then gradle wrapper; fi
+          if [ ! -f "gradlew" ]; then ./gradlew wrapper; fi  # 确保使用 ./ 来运行脚本，尤其是在工作目录中
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
+
       - name: Upload APK
         uses: actions/upload-artifact@v2
         with:
           name: my-build-apk
-          path: ./**/*.apk
-
+          path: ./project/app/build/outputs/apk/debug/*.apk  # 更具体的路径，确保能正确找到 APK 文件
